@@ -71,6 +71,7 @@ def parce_args():  # type: () -> Namespace
     a_parcer = argparse.ArgumentParser()
     a_parcer.add_argument('filename', type=argparse.FileType('rb'), help='file name')
     a_parcer.add_argument('--api-key', type=str, help='Ergo API auth key')
+    a_parcer.add_argument('--server', '-s', type=str, help='Ergo API server')
     return a_parcer.parse_args()
 
 
@@ -84,7 +85,7 @@ def get_digest(fo):
 def test1():
     setup_logger()
     logging.debug('test1')
-    ergo = ErgoClient('localhost:9052')
+    ergo = ErgoClient('localhost:9053')
     code, info = ergo.request('/info')
     logging.debug('Return code: %i' % code)
     logging.debug('info: %s' % info)
@@ -93,7 +94,11 @@ def test1():
 def main():
     setup_logger()
     args = parce_args()
-    ergo = ErgoClient('localhost:9052', api_key=args.api_key)
+    print(args)
+    ergo = ErgoClient(args.server if args.server is not None else DEFAULT_ERGO_SERVER, api_key=args.api_key)
+
+
+def bypass():
     digest = get_digest(args.filename)
     logging.info('sha256 hash: %s' % digest)
     code, trns = ergo.request('/wallet/transaction/generate', {
