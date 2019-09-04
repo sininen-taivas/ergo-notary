@@ -10,7 +10,7 @@ import sys
 import os
 import json
 
-from util import ErgoNodeApi, setup_logging, get_digest
+from util import DEFAULT_RPC_SERVER, ErgoClient, setup_logger, get_digest
 
 
 def parse_cli():
@@ -50,8 +50,8 @@ def parse_cli():
 
 def main():
     opts = parse_cli()
-    setup_logging(opts.quiet, opts.network_log)
-    api = ErgoNodeApi(opts.server)
+    setup_logger(not opts.quiet)
+    api = ErgoClient(opts.server, opts.api_key)
 
     # скрипт считает SHA-256 хэш файла, и преобразует его в Base16-строку.
     # На Linux-платформах результат можно сверить с выходом sha256sum, он должен совпадать
@@ -69,13 +69,12 @@ def main():
         "fee": 1000000,
         "inputsRaw": []
     }
-    json_dump = json.dumps(json_data)
 
     # POST to /wallet/transaction/generate
     try:
         url_ = '/wallet/transaction/generate'
         logging.debug('Sending to %s' % url_)
-        tx_json = api.request(url_, data=json_dump, api_key=opts.api_key)
+        code, tx_json = api.request(url_, data=json_data)
     except HTTPError as ex:
         logging.error(
             '[RPC ERROR] method=%s, http-status=%d\n%s' % (
@@ -90,7 +89,7 @@ def main():
     try:
         url_ = '/transactions'
         logging.debug('Send transaction to %s' % url_)
-        res = api.request(url_, data=tx_json, api_key=opts.api_key)
+        code, res = api.request(url_, data=tx_json)
     except expression as identifier:
         logging.error('[RPC ERROR] method=%s, http-status=%d\n%s' % (
             url_, ex.code, ex.read().decode()

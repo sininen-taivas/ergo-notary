@@ -2,61 +2,59 @@ from pprint import pprint
 import json
 import logging
 import sys
-try:
-    from urllib.parse import urljoin
-    from urllib.request import urlopen, Request
-except ImportError:
-    from urllib2 import Request, urlopen
-    from urlparse import urljoin
+from urllib.parse import urljoin
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError
 import hashlib
 
+LOG_FORMAT = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 DEFAULT_RPC_SERVER = 'localhost:9053'
-network_logger = logging.getLogger('network')
 
 
-def setup_logging(quiet, show_network_log):
-    # Setup logging
-    if quiet:
-        logging.basicConfig(level=logging.INFO)
-    else:
-        logging.basicConfig(level=logging.DEBUG)
-    for hdl in logging.getLogger().handlers:
-        hdl.setFormatter(logging.Formatter('%(message)s'))
-    if not quiet and show_network_log:
-        network_logger.setLevel(logging.DEBUG)
-    else:
-        network_logger.setLevel(logging.INFO)
+def setup_logger(stdout=True, file_name=None):  # type: () -> logging.Logger
+    _logger = logging.getLogger()
+    _logger.setLevel(logging.DEBUG)
+    if file_name is not None:
+        _handler = logging.handlers.RotatingFileHandler(file_name, maxBytes=1024 * 1024, backupCount=3)
+        _handler.setFormatter(LOG_FORMAT)
+        _logger.addHandler(_handler)
+    if stdout:
+        _console = logging.StreamHandler()
+        _console.setLevel(logging.DEBUG)
+        _console.setFormatter(LOG_FORMAT)
+        logging.getLogger('').addHandler(_console)
+    return _logger
 
 
-class ErgoNodeApi(object):
-    def __init__(self, server=None):
-        self.server = (
-            server if server else DEFAULT_RPC_SERVER
-        )
 
-    def request(self, path, data=None, api_key=None):
-        if sys.version_info[0] == 2 and isinstance(data, unicode):
-            data = data.encode()
-        if sys.version_info[0] == 3 and isinstance(data, str):
-            data = data.encode()
-        #if sys.version_info[0] == 2 and isinstance(api_key, unicode):
-        #    api_key = api_key.encode()
-        #if sys.version_info[0] == 3 and isinstance(api_key, str):
-        #    api_key = api_key.encode()
-        url = urljoin('http://%s' % self.server, path)
-        network_logger.debug('GET %s', url)
-        headers = {
+class ErgoClient:
+    def __init__(self, server, api_key=None):
+        self.server, self.api_key = server, api_key
+        self.headers = {
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
         }
-        if data:
-            headers['Content-Type'] = 'application/json'
-        if api_key:
-            headers['api_key'] = api_key
-        req = Request(url=url, headers=headers, data=data)
-        res = urlopen(req)
-        res_data = res.read().decode('utf-8')
-        res_data_json = json.loads(res_data)
-        return res_data_json
+        if api_key is not None:
+            self.headers['api_key'] = api_key
+
+    def log(self, message, level=logging.INFO):
+        logging.log(level, 'ErgoClient:%s' % message)
+
+    def request(self, path, data=None):  # type: (str) -> (int, dict)
+        url = urljoin('http://%s' % self.server, path)
+        self.log('request %s' % url)
+        if not isinstance(data, bytes):
+            data = bytes(json.dumps(data), encoding='utf-8')
+        req = Request(url=url, headers=self.headers, data=data)
+        try:
+            res = urlopen(req)  # type: http.client.HTTPResponse
+            return res.code, json.loads(res.read())
+        except (ConnectionResetError, TimeoutError) as e:
+            self.log('Ergo API server not responding (%s)' % str(e), level=logging.ERROR)
+            exit(1)
+        except HTTPError as eres:
+            self.log(json.loads(eres.read()), level=logging.ERROR)
+            exit(1)
 
 
 def get_digest(fo):

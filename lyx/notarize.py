@@ -60,7 +60,7 @@ class ErgoClient:
             res = urlopen(req)  # type: http.client.HTTPResponse
             return res.code, json.loads(res.read())
         except (ConnectionResetError, TimeoutError) as e:
-            self.log(logging.ERROR, 'Ergo API server not responding (%s)' % str(e))
+            self.log('Ergo API server not responding (%s)' % str(e), level=logging.ERROR)
             exit(1)
         except urllib.error.HTTPError as eres:
             self.log(json.loads(eres.read()), level=logging.ERROR)
