@@ -15,4 +15,5 @@ instance/
 .vscode
 
 
-testfile.txt
+*.txt
+*.json

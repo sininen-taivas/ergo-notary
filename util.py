@@ -1,26 +1,15 @@
-#!/usr/bin/python3
-
-import logging
-import logging.handlers
-import os
-from urllib.request import urlopen, Request
-from urllib.parse import urljoin
-import urllib
+from pprint import pprint
 import json
-import argparse
+import logging
+import sys
+from urllib.parse import urljoin
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError
 import hashlib
 
-if False:  # for type check
-    import http.client
-    import _hashlib
+LOG_FORMAT = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+DEFAULT_RPC_SERVER = 'localhost:9053'
 
-LOG_FORMAT = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-DEFAULT_ERGO_SERVER = 'localhost:9053'  # localhost:9053
-
-_MY_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
-# log_file = os.path.join(_MY_DIR, 'log', 'notarize.log')
 
 def setup_logger(stdout=True, file_name=None):  # type: () -> logging.Logger
     _logger = logging.getLogger()
@@ -37,6 +26,7 @@ def setup_logger(stdout=True, file_name=None):  # type: () -> logging.Logger
     return _logger
 
 
+
 class ErgoClient:
     def __init__(self, server, api_key=None):
         self.server, self.api_key = server, api_key
@@ -47,7 +37,7 @@ class ErgoClient:
         if api_key is not None:
             self.headers['api_key'] = api_key
 
-    def log(self, message, level=logging.INFO):
+    def log(self, message, level=logging.DEBUG):
         logging.log(level, 'ErgoClient:%s' % message)
 
     def request(self, path, data=None):  # type: (str) -> (int, dict)
@@ -62,17 +52,9 @@ class ErgoClient:
         except (ConnectionResetError, TimeoutError) as e:
             self.log('Ergo API server not responding (%s)' % str(e), level=logging.ERROR)
             exit(1)
-        except urllib.error.HTTPError as eres:
+        except HTTPError as eres:
             self.log(json.loads(eres.read()), level=logging.ERROR)
             exit(1)
-
-
-def parce_args():  # type: () -> Namespace
-    a_parcer = argparse.ArgumentParser()
-    a_parcer.add_argument('filename', type=argparse.FileType('rb'), help='file name')
-    a_parcer.add_argument('--api-key', type=str, help='Ergo API auth key')
-    a_parcer.add_argument('--server', '-s', type=str, help='Ergo API server')
-    return a_parcer.parse_args()
 
 
 def get_digest(fo):
@@ -80,42 +62,3 @@ def get_digest(fo):
     for buf in iter(lambda: fo.read(4096), b''):
         sha256.update(buf)
     return sha256.hexdigest()
-
-
-def test1():
-    setup_logger()
-    logging.debug('test1')
-    ergo = ErgoClient('localhost:9053')
-    code, info = ergo.request('/info')
-    logging.debug('Return code: %i' % code)
-    logging.debug('info: %s' % info)
-
-
-def main():
-    setup_logger()
-    args = parce_args()
-    print(args)
-    ergo = ErgoClient(args.server if args.server is not None else DEFAULT_ERGO_SERVER, api_key=args.api_key)
-
-
-def bypass():
-    digest = get_digest(args.filename)
-    logging.info('sha256 hash: %s' % digest)
-    code, trns = ergo.request('/wallet/transaction/generate', {
-        'requests': [{
-            'address': '4MQyMKvMbnCJG3aJ',
-            'value': 1000000,
-            'registers': {
-                'R4': '0e03%s' % digest
-            }
-        }],
-        'fee': 1000000,
-        'inputsRaw': []
-    })
-    logging.debug('Return code: %i' % code)
-    logging.debug('info: %s' % trns)
-
-
-if __name__ == '__main__':
-    main()
-    # test1()

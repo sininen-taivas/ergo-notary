@@ -1,16 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import logging
 from pprint import pprint
-try:
-    from urllib.error import HTTPError
-except ImportError:
-    from urllib2 import HTTPError
+from urllib.error import HTTPError
 from argparse import ArgumentParser, FileType
 import sys
 import os
 import json
+from datetime import datetime
 
 from util import DEFAULT_RPC_SERVER, ErgoClient, setup_logger, get_digest
+
+TARGET_ADDRESS = {
+    'mainnet': '4MQyMKvMbnCJG3aJ',
+    'testnet': 'Ms7smJmdbakqfwNo',
+}
 
 
 def parse_cli():
@@ -27,10 +30,6 @@ def parse_cli():
         help='Address of RPC server in format SERVER:PORT'
     )
     parser.add_argument(
-        '-n', '--network-log', action='store_true', default=False,
-        help='Show network logs'
-    )
-    parser.add_argument(
         '-q', '--quiet', action='store_true', default=False,
         help='Do not show debug output'
     )
@@ -43,8 +42,14 @@ def parse_cli():
         type=int, default=4,
         help='I need help'
     )
-    opts = parser.parse_args()
+    # mainnet = 4MQyMKvMbnCJG3aJ
+    # testnet = Ms7smJmdbakqfwNo
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--mainnet', action='store_true', help='Using main net')
+    group.add_argument('--testnet', action='store_false',
+                       help='Using test net')
 
+    opts = parser.parse_args()
     return opts
 
 
@@ -58,45 +63,53 @@ def main():
     file_hash = get_digest(opts.filename)
     logging.debug('sha256 file %s: %s' % (opts.filename, file_hash))
 
+    r4 = f'0e20{file_hash}'
+
     json_data = {
         "requests": [{
-            "address": "4MQyMKvMbnCJG3aJ",
+            "address": TARGET_ADDRESS['mainnet'] if opts.mainnet else TARGET_ADDRESS['testnet'],
             "value": 1000000,
+            "assets": [],
             "registers": {
-                "R4": "0e03%s" % file_hash
+                "R4": r4
             }
         }],
         "fee": 1000000,
         "inputsRaw": []
     }
-
     # POST to /wallet/transaction/generate
-    try:
-        url_ = '/wallet/transaction/generate'
-        logging.debug('Sending to %s' % url_)
-        code, tx_json = api.request(url_, data=json_data)
-    except HTTPError as ex:
-        logging.error(
-            '[RPC ERROR] method=%s, http-status=%d\n%s' % (
-                url_, ex.code, ex.read().decode()
-            )
-        )
-        sys.exit(1)
-    else:
-        logging.debug(tx_json)
+    url_ = '/wallet/transaction/generate'
+    logging.debug('Sending to %s, %s' % (url_, json_data))
+    code, tx_json = api.request(url_, data=json_data)
+    logging.debug(tx_json)
+
+    # check outputs
+    if not tx_json.get('outputs'):
+        logging.error(f'Error response from {url_}')
+        exit(1)
 
     # If no errors POST to /transactions
-    try:
-        url_ = '/transactions'
-        logging.debug('Send transaction to %s' % url_)
-        code, res = api.request(url_, data=tx_json)
-    except expression as identifier:
-        logging.error('[RPC ERROR] method=%s, http-status=%d\n%s' % (
-            url_, ex.code, ex.read().decode()
-        ))
-    else:
-        logging.debug(res)
+    url_ = '/transactions'
+    logging.debug('Send transaction to %s' % url_)
+    code, txid = api.request(url_, data=tx_json)
+    logging.debug(f'txId: {txid}')
 
+    tx_data = {}
+    for box in tx_json.get('outputs', {}):
+        if 'R4' in box.get('additionalRegisters', {}) and box['additionalRegisters']['R4'] == r4:
+            tx_data.update(boxId=box['boxId'], transactionId=txid, updated=datetime.now().timestamp())
+            break
+
+    if not tx_data:
+        logging.error('Not found needed box')
+        exit(1)
+
+    out_filename = f'{opts.filename.name}.nt.json'
+    with open(out_filename, 'w+') as fw:
+        logging.debug(f'Write to file {out_filename}')
+        fw.write(json.dumps(tx_data))
+
+    logging.debug('OK')
 
 if __name__ == '__main__':
     main()
