@@ -43,7 +43,7 @@ class ErgoClient:
     def request(self, path, data=None):  # type: (str) -> (int, dict)
         url = urljoin('http://%s' % self.server, path)
         self.log('request %s' % url)
-        if not isinstance(data, bytes):
+        if data is not None and not isinstance(data, bytes):
             data = bytes(json.dumps(data), encoding='utf-8')
         req = Request(url=url, headers=self.headers, data=data)
         try:

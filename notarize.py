@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 import logging
 from pprint import pprint
-from urllib.error import HTTPError
 from argparse import ArgumentParser, FileType
-import sys
-import os
 import json
 from datetime import datetime
 
