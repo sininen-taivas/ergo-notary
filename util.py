@@ -8,7 +8,16 @@ from urllib.error import HTTPError
 import hashlib
 
 LOG_FORMAT = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-DEFAULT_RPC_SERVER = 'localhost:9053'
+
+TARGET_ADDRESS = {
+    'mainnet': '4MQyMKvMbnCJG3aJ',
+    'testnet': 'Ms7smJmdbakqfwNo',
+}
+
+TARGET_SERVER = {
+    'mainnet': 'localhost:9053',
+    'testnet': 'localhost:9052'
+}
 
 
 def setup_logger(stdout=True, file_name=None):  # type: () -> logging.Logger
@@ -53,8 +62,7 @@ class ErgoClient:
             self.log('Ergo API server not responding (%s)' % str(e), level=logging.ERROR)
             exit(1)
         except HTTPError as eres:
-            self.log(json.loads(eres.read()), level=logging.ERROR)
-            exit(1)
+            return eres.code, json.loads(eres.read())
 
 
 def get_digest(fo):
