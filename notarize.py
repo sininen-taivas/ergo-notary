@@ -69,7 +69,7 @@ def main():
     json_data = {
         "requests": [{
             "address": TARGET_ADDRESS[target_],
-            "value": opts.duration / 4 * 1000000,
+            "value": opts.duration / 4 * 225000000,
             "assets": [],
             "registers": {
                 "R4": r4
