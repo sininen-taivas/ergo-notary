@@ -4,7 +4,7 @@ import logging
 from argparse import ArgumentParser, FileType
 from time import time
 
-from util import TARGET_SERVER, ErgoClient, setup_logger
+from utils.util import TARGET_SERVER, ErgoClient, setup_logger
 
 
 def parse_cli():

@@ -4,7 +4,7 @@ import logging
 from argparse import ArgumentParser, FileType, ArgumentTypeError
 from time import time
 
-from util import TARGET_ADDRESS, TARGET_SERVER, ErgoClient, setup_logger, get_digest
+from utils.util import TARGET_ADDRESS, TARGET_SERVER, ErgoClient, setup_logger, get_digest
 
 
 def valid_duration(d):
