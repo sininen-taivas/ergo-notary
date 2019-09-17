@@ -106,7 +106,7 @@ def main():
     logging.debug(f'txId: {txid}')
 
     tx_data = {}
-    for box in tx_json.get('outputs', {}):
+    for box in tx_json.get('outputs', []):
         if 'R4' in box.get('additionalRegisters', {}) and box['additionalRegisters']['R4'] == r4:
             tx_data.update(
                 boxId=box['boxId'], transactionId=txid, updated=int(time()))

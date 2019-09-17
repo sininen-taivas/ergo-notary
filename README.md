@@ -23,7 +23,7 @@ python3 notarize.py filename --api-key API_KEY
   - on Linux could compare with sha256sum out must be equal
 - generate arbitrary transactions
 - send an Ergo transaction
-- save result into `{filename}.nt.json` 
+- save result into `{filename}.nt.json`
 
 ## Check Script
 ### Usage
@@ -43,4 +43,12 @@ python3 check.py testfile.txt.nt.json --testnet
 - receives `{filename}.nt.json`, `api-key` as required params
 - script get `boxId` and sending request to `/utxo/boxById/$boxId`
 - if result status 404 then delete field `confirmed` from file
-- if result status OK and `confirmed` not in file then field `confirmed=timestamp` add into file 
+- if result status OK and `confirmed` not in file then field `confirmed=timestamp` add into file
+
+## Development
+
+```bash
+git clone https://github.com/sininen-taivas/ergo-notary
+git submodule init
+git submodule update
+```
